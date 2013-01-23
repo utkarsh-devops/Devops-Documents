@@ -117,7 +117,7 @@ and create a virtual host specification, like
 This will make Webistrano available on port 80 of your server. You then enable this site and restart apache:
 
 
-    sudo apache2ctl restart
+    service httpd restart
 
 Webistrano should now be available on your server. 
 
