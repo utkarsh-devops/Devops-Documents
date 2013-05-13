@@ -1,0 +1,26 @@
+Steps to make fms server start -:
+./server stop
+root@ip-10-62-67-69:/ebs/adobe/fms# ps -e | grep fms
+22203 ? 00:00:05 fmsmaster
+22226 ? 00:00:28 fmsedge
+32013 ? 00:01:02 fmsadmin
+./fmsmgr server fms stop
+./fmsmgr adminserver stop
+./fmsmgr server fms start
+./adminserver start
+./server stop
+./adminserver stop
+./fmsmgr server fms stop
+./fmsmgr adminserver stop
+./fmsmaster -console
+Adobe Flash Media Server (Master)Console mode.
+FMS detected IPv6 protocol stack!
+FMS config
+FMS running in IPv4 protocol stack mode!
+Host: ip-10-62-67-69 IPv4: 10.62.67.69
+Server starting...
+/ebs/adobe/fms/Apache2.2/bin/httpd -f ./conf/httpd.conf -d "/ebs/adobe/fms/Apache2.2" -k start returned 127: /ebs/adobe/fms/Apache2.2/bin/httpd: error while loading shared libraries: libexpat.so.0: cannot open shared object file: No such file or directory
+Edge (12009) started, arguments : -edgeports ":1935,80" -coreports "localhost:19350" -conf "/ebs/adobe/fms/conf/Server.xml" -adaptor "_defaultRoot_" -name "_defaultRoot__edge1" -edgename "edge1".
+Server started (/ebs/adobe/fms/conf/Server.xml).
+./fmsmgr server fms start
+./fmsmgr adminserver start
