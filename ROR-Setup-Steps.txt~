@@ -1,0 +1,88 @@
+ A. Installing  Rails without RVM
+Step:1 Install dependencies
+
+ 	sudo apt-get install libyaml-dev libxml2-dev libxslt1-dev  zlib1g-dev build-essential openssl libssl-dev libmysqlclient-dev libreadline6-dev
+
+Step:2 Install ruby  from source file
+	cd /usr/src
+	sudo wget http://ftp.ruby-lang.org/pub/ruby/1.9/ruby-1.9.3-p327.tar.gz
+	sudo tar xvzf ruby-1.9.3-p327.tar.gz
+	cd ruby-1.9.3-p327
+	sudo ./configure --prefix=/usr/local --enable-shared --disable-install-doc --with-opt-dir=/usr/local/lib
+	sudo make
+	sudo make install
+
+Step:3 Test proper ruby is installed
+	sudo ruby -v
+	The above command should display some thing as follows
+	ruby 1.9.3p327 (2012-11-10 revision 37606) [x86_64-linux]
+
+Step 5: Install Mysql server and Mysql client
+	sudo apt-get install mysql-server-5.5 mysql-client-5.5
+
+Step 6: Install rails
+	 sudo gem install rails
+
+  If you got an error "file 'lib' not found", then run
+	 sudo gem install rdoc
+	 sudo gem install rails
+
+Step 7: Install apache2
+	sudo apt-get install apache2
+
+Step 8: Install passenger
+	cd /usr/src 
+	sudo gem install passenger
+	sudo passenger-install-apache2-module
+  Install all the require packages which are specified in the previous command output.
+  After getting installed Passenger successfully add 3 Passenger Module lines in apache2 configuration file.
+
+Step 9: Install Node.js 
+	sudo apt-get install python-software-properties
+	sudo add-apt-repository ppa:chris-lea/node.js
+	sudo apt-get update
+	sudo apt-get install nodejs-dev
+
+Step 10: Install ffmpeg lib.
+  Gets you the ffmpeg command line application (part of the libav tools now). Additionally, when running the ffmpeg command, you will see an error from the libav developers that this program is deprecated.        That is actually a very politicized question which is open for debate. 
+
+	sudo apt-get install ffmpeg
+
+  If you then add the universe repositorities to your system, you will have available (for manually installing) the "-extra" packages for ffmpeg/libav. These extra packages contain codecs, formats and the like that have restricted distribution under patent law. This includes MP3 encoding with LAME, XviD, AND x264.
+  	
+	sudo apt-get install libavcodec-extra-53 libavdevice-extra-53 libavfilter-extra-2 libavformat-extra-53 libavutil-extra-51 libpostproc-extra-52 libswscale-extra-2
+
+  With this repository added, running an 
+
+	sudo apt-get dist-upgrade
+
+  If you want to check the formats of ffmpeg, run
+
+	ffmpeg -formats	
+
+Step 11: Install imagemagick and graphicsmagick-imagemagick-compat
+	sudo apt-get install imagemagick
+	sudo apt-get install graphicsmagick-imagemagick-compat
+
+Step 12: Install Flash Media Server
+	wget http://download.macromedia.com/pub/flashmediaserver/updates/4_5_1/Linux_64/FlashMediaServer4.5_x64.tar.gz
+	tar xvf FlashMediaServer4.5_x64.tar.gz
+	cd FMS_4_5_1_r484/
+	sudo ./installFMS
+  
+  If you got the error of libcap is not installed, then
+  
+        ln -s /lib/x86_64-linux-gnu/libcap.so.2 libcap.so.1
+        
+Step 13: Installing MongoDB
+        Configure Package Management System (APT)
+  The Debian package management tool (i.e. dpkg and apt) ensure package consistency and authenticity by requiring that distributors sign packages with GPG keys. Issue the following command to import the 10gen public GPG Key:
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
+  Create a the /etc/apt/sources.list.d/10gen.list file and include the following line for the 10gen repository.
+        deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen
+  Now issue the following command to reload your repository:
+        Sudo apt-get update
+  Issue the following command to install the latest stable version of MongoDB:
+       sudo apt-get install mongodb-10gen
+  When this command completes, you have successfully installed MongoDB! Continue for configuration and start-up suggestions.
+       sudo /etc/init.d/mongodb start

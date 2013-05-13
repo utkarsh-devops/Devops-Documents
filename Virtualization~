@@ -1,0 +1,254 @@
+This guide explains how you can install and use KVM for creating and running virtual machines on an Ubuntu 12.04 LTS server. I will show how to create image-based virtual machines and also virtual machines that use a logical volume (LVM). KVM is short for Kernel-based Virtual Machine and makes use of hardware virtualization, i.e., you need a CPU that supports hardware virtualization, e.g. Intel VT or AMD-V.
+
+I do not issue any guarantee that this will work for you!
+
+ 
+1 Preliminary Note
+
+I'm using a machine with the hostname server1.example.com and the IP address 192.168.0.100 here as my KVM host.
+
+Because we will run all the steps from this tutorial with root privileges, we can either prepend all commands in this tutorial with the string sudo, or we become root right now by typing
+
+        sudo su
+
+2 Installing KVM And vmbuilder
+
+First check if your CPU supports hardware virtualization - if this is the case, the command
+
+        egrep '(vmx|svm)' --color=always /proc/cpuinfo
+
+should display something, e.g. like this:
+
+        root@server1:~# egrep '(vmx|svm)' --color=always /proc/cpuinfo
+        flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush
+        mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt rdtscp lm 3dnowext 3dnow rep_good nopl extd_apicid
+        pni cx16 lahf_lm cmp_legacy svm extapic cr8_legacy 3dnowprefetch lbrv
+        flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush
+        mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt rdtscp lm 3dnowext 3dnow rep_good nopl extd_apicid
+        pni cx16 lahf_lm cmp_legacy svm extapic cr8_legacy 3dnowprefetch lbrv
+        
+        root@server1:~#
+
+If nothing is displayed, then your processor doesn't support hardware virtualization, and you must stop here.
+
+To install KVM and vmbuilder (a script to create Ubuntu-based virtual machines), we run
+
+        apt-get install ubuntu-virt-server python-vm-builder kvm-ipxe
+
+Afterwards we must add the user as which we're currently logged in (root) to the group libvirtd:
+
+        adduser `id -un` libvirtd
+        adduser `id -un` kvm
+
+You need to log out and log back in for the new group memberships to take effect.
+
+To check if KVM has successfully been installed, run
+
+        virsh -c qemu:///system list
+
+It should display something like this:
+
+        root@server1:~# virsh -c qemu:///system list
+         Id Name                 State
+        ----------------------------------
+
+        root@server1:~#
+ 
+If it displays an error instead, then something went wrong.
+
+Next we need to set up a network bridge on our server so that our virtual machines can be accessed from other hosts as if they were physical systems in the network.
+
+To do this, we install the package bridge-utils...
+
+        apt-get install bridge-utils
+
+... and configure a bridge. Open /etc/network/interfaces:
+
+        vi /etc/network/interfaces
+
+Before the modification, my file looks as follows:
+
+        # This file describes the network interfaces available on your system
+        # and how to activate them. For more information, see interfaces(5).
+
+        # The loopback network interface
+        auto lo
+        iface lo inet loopback
+
+        # The primary network interface
+        auto eth0
+        iface eth0 inet static
+                address 192.168.0.100
+                netmask 255.255.255.0
+                network 192.168.0.0
+                broadcast 192.168.0.255
+                gateway 192.168.0.1
+                dns-nameservers 8.8.8.8 8.8.4.4
+
+I change it so that it looks like this:
+
+        # This file describes the network interfaces available on your system
+        # and how to activate them. For more information, see interfaces(5).
+
+        # The loopback network interface
+        auto lo
+        iface lo inet loopback
+
+        # The primary network interface
+        auto eth0
+        iface eth0 inet manual
+
+
+        auto br0
+        iface br0 inet static
+                address 192.168.0.100
+                network 192.168.0.0
+                netmask 255.255.255.0
+                broadcast 192.168.0.255
+                gateway 192.168.0.1
+                dns-nameservers 8.8.8.8 8.8.4.4
+                bridge_ports eth0
+                bridge_fd 9
+                bridge_hello 2
+                bridge_maxage 12
+                
+               (Make sure you use the correct settings for your network!)
+
+Restart the network...
+
+        /etc/init.d/networking restart
+
+... and run
+
+        ifconfig
+
+It should now show the network bridge (br0):
+
+        root@server1:~# ifconfig
+        br0       Link encap:Ethernet  HWaddr 00:1e:90:f3:f0:02
+                  inet addr:192.168.0.100  Bcast:192.168.0.255  Mask:255.255.255.0
+                  inet6 addr: fe80::21e:90ff:fef3:f002/64 Scope:Link
+                  UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+                  RX packets:29 errors:0 dropped:0 overruns:0 frame:0
+                  TX packets:29 errors:0 dropped:0 overruns:0 carrier:0
+                  collisions:0 txqueuelen:0
+                  RX bytes:1934 (1.9 KB)  TX bytes:2844 (2.8 KB)
+
+        eth0      Link encap:Ethernet  HWaddr 00:1e:90:f3:f0:02
+                  UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+                  RX packets:44613 errors:0 dropped:0 overruns:0 frame:0
+                  TX packets:23445 errors:0 dropped:0 overruns:0 carrier:0
+                  collisions:0 txqueuelen:1000
+                  RX bytes:63663064 (63.6 MB)  TX bytes:1792940 (1.7 MB)
+                  Interrupt:41 Base address:0xa000
+
+        lo        Link encap:Local Loopback
+                  inet addr:127.0.0.1  Mask:255.0.0.0
+                  inet6 addr: ::1/128 Scope:Host
+                  UP LOOPBACK RUNNING  MTU:16436  Metric:1
+                  RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+                  TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+                  collisions:0 txqueuelen:0
+                  RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+        virbr0    Link encap:Ethernet  HWaddr 2a:4a:49:13:de:8f
+                  inet addr:192.168.122.1  Bcast:192.168.122.255  Mask:255.255.255.0
+                  UP BROADCAST MULTICAST  MTU:1500  Metric:1
+                  RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+                  TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+                  collisions:0 txqueuelen:0
+                  RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+        root@server1:~#
+Before we start our first virtual machine, I recommend to reboot the system:
+
+        reboot
+
+If you don't do this, you might get an error like open /dev/kvm: Permission denied in the virtual machine logs in the /var/log/libvirt/qemu/ directory.
+
+ 
+3 Creating An Image-Based VM
+
+We can now create our first VM - an image-based VM (if you expect lots of traffic and many read- and write operations for that VM, use an LVM-based VM instead as shown in chapter 6 - image-based VMs are heavy on hard disk IO).
+
+I want to create my virtual machines in the directory /var/lib/libvirt/images/ (they cannot be created in the /root directory because the libvirt-qemu user doesn't have read permissions in that directory).
+
+We will create a new directory for each VM that we want to create, e.g. /var/lib/libvirt/images/vm1, /var/lib/libvirt/images/vm2, /var/lib/libvirt/images/vm3, and so on, because each VM will have a subdirectory called ubuntu-kvm, and obviously there can be just one such directory in /var/lib/libvirt/images/vm1, for example. If you try to create a second VM in /var/lib/libvirt/images/vm1, for example, you will get an error message saying ubuntu-kvm already exists (unless you run vmbuilder with the --dest=DESTDIR argument):
+
+        root@server1:/var/lib/libvirt/images/vm1# vmbuilder kvm ubuntu -c vm2.cfg
+        2009-05-07 16:32:44,185 INFO     Cleaning up
+        ubuntu-kvm already exists
+
+        root@server1:/var/lib/libvirt/images/vm1#
+
+We will use the vmbuilder tool to create VMs. (You can learn more about vmbuilder here.) vmbuilder uses a template to create virtual machines - this template is located in the /etc/vmbuilder/libvirt/ directory. First we create a copy:
+
+        mkdir -p /var/lib/libvirt/images/vm1/mytemplates/libvirt
+        cp /etc/vmbuilder/libvirt/* /var/lib/libvirt/images/vm1/mytemplates/libvirt/
+
+Now we come to the partitioning of our VM. We create a file called vmbuilder.partition...
+
+        vim /var/lib/libvirt/images/vm1/vmbuilder.partition
+
+... and define the desired partitions as follows:
+
+        root 8000
+        swap 4000
+        ---
+        /var 20000
+
+This defines a root partition (/) with a size of 8000MB, a swap partition of 4000MB, and a /var partition of 20000MB. The --- line makes that the following partition (/var in this example) is on a separate disk image (i.e., this would create two disk images, one for root and swap and one for /var). Of course, you are free to define whatever partitions you like (as long as you also define root and swap), and of course, they can be in just one disk image - this is just an example.
+
+I want to install openssh-server in the VM. To make sure that each VM gets a unique OpenSSH key, we cannot install openssh-server when we create the VM. Therefore we create a script called boot.sh that will be executed when the VM is booted for the first time. It will install openssh-server (with a unique key) and also force the user (I will use the default username administrator for my VMs together with the default password howtoforge) to change the password when he logs in for the first time:
+
+        vim /var/lib/libvirt/images/vm1/boot.sh
+
+        # This script will run the first time the virtual machine boots
+        # It is ran as root.
+
+        # Expire the user account
+        passwd -e administrator
+
+        # Install openssh-server
+        apt-get update
+        apt-get install -qqy --force-yes openssh-server
+
+Make sure you replace the username administrator with your default login name.
+
+        (You can find more about this here: https://help.ubuntu.com/community/JeOSVMBuilder#First%20boot)
+
+        (You can also define a "first login" script as described here: https://help.ubuntu.com/community/JeOSVMBuilder#First%20login)
+
+Now take a look at
+
+vmbuilder kvm ubuntu --help
+
+to learn about the available options.
+
+To create our first VM, vm1, we go to the VM directory...
+
+        cd /var/lib/libvirt/images/vm1/
+
+... and run vmbuilder, e.g. as follows:
+
+        vmbuilder kvm ubuntu --suite=precise --flavour=virtual --arch=amd64 --mirror=http://de.archive.ubuntu.com/ubuntu -o --libvirt=qemu:///system --ip=192.168.0.101 --gw=192.168.0.1 --     part=vmbuilder.partition --templates=mytemplates --user=administrator --name=Administrator --pass=howtoforge --addpkg=vim-nox --addpkg=unattended-upgrades --addpkg=acpid --firstboot=/var/lib/libvirt/images/vm1/boot.sh --mem=256 --hostname=vm1 --bridge=br0
+
+Most of the options are self-explanatory. --part specifies the file with the partitioning details, relative to our working directory (that's why we had to go to our VM directory before running vmbuilder), --templates specifies the directory that holds the template file (again relative to our working directory), and --firstboot specifies the firstboot script. --libvirt=qemu:///system tells KVM to add this VM to the list of available virtual machines. --addpkg allows you to specify Ubuntu packages that you want to have installed during the VM creation (see above why you shouldn't add openssh-server to that list and use the firstboot script instead). --bridge sets up a bridged network; as we have created the bridge br0 in chapter 2, we specify that bridge here.
+
+In the --mirror line, you can specify an official Ubuntu repository in --mirror, e.g. http://de.archive.ubuntu.com/ubuntu. If you leave out --mirror, then the default Ubuntu repository (http://archive.ubuntu.com/ubuntu) will be used.
+
+If you specify an IP address in the --ip switch, make sure that you also specify the correct gateway IP using the --gw switch (otherwise vmbuilder will assume that it is the first valid address in the network which might not be correct). Usually the gateway IP is the same that you use in /etc/network/interfaces (see chapter 2).
+
+The build process can take a few minutes.
+
+Afterwards, you can find an XML configuration file for the VM in /etc/libvirt/qemu/ (=> /etc/libvirt/qemu/vm1.xml):
+
+        ls -l /etc/libvirt/qemu/
+
+        root@server1:/var/lib/libvirt/images/vm1# ls -l /etc/libvirt/qemu/
+        total 8
+        drwxr-xr-x 3 root root 4096 May 21 13:00 networks
+        -rw------- 1 root root 2082 May 21 13:15 vm1.xml
+        root@server1:/var/lib/libvirt/images/vm1#
+
+
