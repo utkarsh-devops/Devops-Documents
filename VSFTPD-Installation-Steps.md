@@ -183,17 +183,21 @@ The configuration file is look like below.
 		rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
         
         
-3) Now we need to create ftp user with its home directory.
+4) Now we need to create ftp user with its home directory.
         
     useradd -d {path_of_home_directory} -m {username}
         
-4) Cahnge the ownership of the files.
+5) Cahnge the ownership of the files.
 
     chown -R username:username {path_of_home_directory}
     
-5) Make all necessary changes within the "files" subdirectory
+6) Your chroot directory must have 555 permissions. root can’t have write permissions for this directory.
 
-Then, as always, restart:
+    chmod -R 555 {path_of_home_directory}
+
+7) Make all necessary changes within the "files" subdirectory
+
+8) Then, as always, restart:
 
     sudo service vsftpd restart
 
