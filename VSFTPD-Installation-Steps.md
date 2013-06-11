@@ -191,9 +191,13 @@ The configuration file is look like below.
 
     chown -R username:username {path_of_home_directory}
     
-6) Your chroot directory must have 555 permissions. root can’t have write permissions for this directory.
+  example: 
+        
+    chown -R afp:afp {path_of_home_directory}
+    
+6) Your chroot directory must have 755 permissions. 
 
-    chmod -R 555 {path_of_home_directory}
+    chmod -R 755 {path_of_home_directory}
 
 7) Make all necessary changes within the "files" subdirectory
 
