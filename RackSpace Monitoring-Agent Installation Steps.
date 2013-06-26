@@ -1,0 +1,88 @@
+    Installing Monitor Agent on “yme-live” server
+
+
+    Log in to the server that you want to monitor.
+
+    Add the agent package repository by running:
+
+    sudo sh -c 'echo "deb REPOSITORY-URL cloudmonitoring main" > /etc/apt/sources.list.d/rackspace-monitoring-agent.list'
+
+    NOTE: Replace "REPOSITORY-URL" in the command with the appropriate repository URL for your distribution:
+
+        Ubuntu 10.04: http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-10.04-x86_64
+
+        Ubuntu 11.04: http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-11.04-x86_64
+
+        Ubuntu 11.10: http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-11.10-x86_64
+
+        Ubuntu 12.04: http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-12.04-x86_64
+
+        Ubuntu 12.10: http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-12.10-x86_64
+
+        Debian Squeeze: http://stable.packages.cloudmonitoring.rackspace.com/debian-squeeze-x86_64
+
+    For example, to install on Ubuntu version 10.04, you would run:
+
+    sudo sh -c ' echo "deb http://stable.packages.cloudmonitoring.rackspace.com/ubuntu-10.04-x86_64 cloudmonitoring main" > /etc/apt/sources.list.d/rackspace-monitoring-agent.list'
+
+    Add a signing key for the apt repository.
+
+    curl https://monitoring.api.rackspacecloud.com/pki/agent/linux.asc | sudo apt-key add -
+
+    Update your apt-get program to recognize the new repository.
+
+    sudo apt-get update
+
+    Install the agent.
+
+    sudo apt-get install rackspace-monitoring-agent
+
+Next you'll run the agent setup program .
+
+    Run the Agent Setup Program
+
+The agent setup program performs the following tasks for you:
+
+    Creates an agent token, which performs authentication with Cloud Monitoring.
+
+    Creates an agent configuration file.
+
+    Runs a test connection to verify connectivity with the Rackspace datacenters.
+
+    Associates the agent ID with the server's entity ID in Cloud Monitoring.
+
+To run the setup program:
+
+    Verify you have your Rackspace username and API key or password. You can find your user name in the upper right corner of the New Cloud Control Panel. Select the username menu and API Key to access your API key.
+
+    Log in to the server where you installed the agent package.
+
+    On Linux, enter the following command:
+
+    sudo rackspace-monitoring-agent --setup
+
+    On Windows, enter (prefix this line with "& " if you are using Power Shell):
+
+    "C:\Program Files (x86)\Rackspace Monitoring\rackspace-monitoring-agent.exe" -o --setup
+
+    The list of setup Settings appears.
+
+    Supply your Rackspace username and API key or password.
+
+    If this is your first time running the setup program, you will be prompted to choose an agent token. Select the "Create a New Token" token.
+
+    You should see the message Agent successfully connected!
+
+    At the next prompt, you should see a list of Cloud Monitoring entities. If only one entity is listed, select option 1 to associate the agent with that entity. If you see more than one Entity listed, choose the one that most closely matches your cloud server based on the IP addresses listed.
+
+    Tip: A Cloud Monitoring Entity will be created automatically for every Rackspace Cloud Server on your account. If you install the agent on a dedicated server, or a server not hosted with Rackspace, you won't see any entities listed, so you should choose the option to create one. If you have to create an Entity, monitoring on your server won't be visible in the New Cloud Control Panel, but it may be configured via the API using raxmon .
+
+It's now time to start the agent.
+
+    Start the Agent
+
+On Linux, issue the following command to start the agent:
+
+sudo service rackspace-monitoring-agent start
+
+Now you can add monitoring-agents as per your requirements.

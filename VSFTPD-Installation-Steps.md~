@@ -26,11 +26,7 @@ After that, uncomment the local_enable option, changing it to yes and, additiona
 Finish up by uncommenting command to chroot_local_user. When this line is set to Yes, all the local users will be jailed within their chroot and will be denied access to any other part of the server. 
 
     chroot_local_user=YES
-
-you may restrict local users to their home directories. chroot_list_enable below.
-
-    chroot_local_user=NO
-
+    
 Save and Exit that file. Because of a recent vsftpd upgrade, vsftpd is "refusing to run with writable root inside chroot". A handy way to address this issue to is to take the following steps:
 
 The configuration file is look like below.
@@ -146,7 +142,7 @@ The configuration file is look like below.
 		# You may restrict local users to their home directories.  See the FAQ for
 		# the possible risks in this before using chroot_local_user or
 		# chroot_list_enable below.
-		chroot_local_user=NO
+		#chroot_local_user=YES
 		#
 		# You may specify an explicit list of local users to chroot() to their home
 		# directory. If chroot_local_user is YES, then this list becomes a list of

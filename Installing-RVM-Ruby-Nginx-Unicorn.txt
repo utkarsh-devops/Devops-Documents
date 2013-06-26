@@ -1,0 +1,200 @@
+apt-get install mysql-server
+
+Install RVM
+ \curl -L https://get.rvm.io | bash
+
+Install RVM stable with ruby:
+
+ \curl -L https://get.rvm.io | bash -s stable --ruby
+
+rvm install 1.9.3-p327
+rvm -v
+
+gem install rails
+rails -v
+
+sudo apt-get install nodejs
+
+Install Nginx
+
+sudo apt-get intall nginx
+/etc/init.d/nginx restart
+ifconfig eth0 | grep inet | awk '{ print $2 }'
+update-rc.d nginx defaults
+
+apt-get install curl git-core
+
+apt-get install bundler
+
+Installing Unicorn.
+
+gem install unicorn
+unicorn -v
+
+Create one demo Rails application.
+cd /var/www/
+rails new sample_app
+cd sample_app/
+
+So here's example configuration of Rails application running on unicorn with nginx as reverse proxy.
+
+First, let's add unicorn gem to our app's Gemfile
+
+ gem 'unicorn'
+
+Create unicorn config file in config/unicorn.rb
+
+	# The rule of thumb is to use 1 worker per processor core available,
+            # however since we'll be hosting many apps on this server,
+            # we need to take a less aggressive approach
+            worker_processes 2
+            
+            # We deploy with capistrano, so "current" links to root dir of current release
+            working_directory "/var/www/appname/current"
+            
+            # Listen on unix socket
+            listen "/tmp/unicorn.appname.sock", :backlog => 64
+            
+            pid "/var/www/appname/current/tmp/pids/unicorn.pid"
+            
+            stderr_path "/var/www/appname/current/log/unicorn.log"
+            stdout_path "/var/www/appname/current/log/unicorn.log"
+            
+You can start unicorn right away with
+
+	bundle exec unicorn -D -c /config/unicorn.rb
+
+Now we are going to create separate application specific virtualhost file.
+cd /etc/nginx/sites-availables/unicorn.weboapps.com
+
+	upstream unicorn-sample_app {
+              server unix:/tmp/unicorn.appname.sock;
+            }
+
+            server {
+              listen 80;
+              server_name unicorn.weboapps.com;
+              root /var/www/sample_app/public;
+
+              location / {
+ 		#proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+ 		#proxy_set_header X-Real-IP  $remote_addr;
+  		#proxy_set_header Host $http_host;
+                 include proxy_params;
+                 proxy_redirect off;
+
+                if (-f $request_filename) {
+                  access_log          off;
+                  expires             max;
+                  break;
+                }
+
+                if (-f $request_filename.html) {
+                rewrite (.*) $1.html break;
+                }
+
+                #if (!-f $request_filename) {
+                #  proxy_pass http://unicorn.weboapps.com;
+                #  break;
+                #}
+              }
+            }
+ 
+
+Note the proxysetheader directives. Nginx by default does not pass these down the line, so you would end up with your Rails app seeing your server's IP instead of remote IP address for example. Similarly you need to tell nginx to set X-FORWARDED-PROTO header if you want to detect HTTPS requests in you app:
+
+	server {
+              listen 443;
+              server_name appname.com;
+              root /var/www/appname/current/public;
+            
+              location / {
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Real-IP  $remote_addr;
+                proxy_set_header Host $http_host;
+                proxy_set_header X-FORWARDED-PROTO https;
+                proxy_redirect off;
+            
+                if (!-f $request_filename) {
+                  proxy_pass http://unicorn-appname;
+                  break;
+                }
+              }
+            }
+
+
+Unicorn is able to listen on Unix sockets which are faster than TCP ones and are better choice for our setup where both nginx and applications run on the same machine. Also it's OS kernel doing load balancing for us. Another cool feature is zero-downtime deployments, you can upgrade your application's code, unicorn library or even Ruby interpreter without dropping connections. 
+
+So, we create unix socket file.
+
+touch /tmp/unicorn.appname.sock
+chmod 777 /tmp/unicorn.appname.sock
+
+Restart nginx and your app should be up and running. We also want our app to start automatically after server boot, so we'll set up upstart script to achieve this.
+
+Put below file in /etc/init.d/unicorn.unicorn and make it executable with
+
+	#! /bin/bash
+
+### BEGIN INIT INFO
+# Provides:          unicorn
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts the unicorn web server
+# Description:       starts unicorn
+### END INIT INFO
+
+USER="root"
+DAEMON=/usr/local/rvm/gems/ruby-1.9.3-p327/bin/unicorn
+DAEMON_OPTS="-c /var/www/sample_app/config/unicorn.rb -E staging -D"
+NAME=unicorn
+DESC="Unicorn app for $USER"
+PID=/var/www/sample_app/shared/pids/unicorn.pid
+
+case "$1" in
+  start)
+        CD_TO_APP_DIR="cd /var/www/sample_app"
+        START_DAEMON_PROCESS="bundle exec $DAEMON $DAEMON_OPTS"
+
+        echo -n "Starting $DESC: "
+        if [ `whoami` = root ]; then
+          su - $USER -c "$CD_TO_APP_DIR > /dev/null 2>&1 && $START_DAEMON_PROCESS"
+        else
+          $CD_TO_APP_DIR > /dev/null 2>&1 && $START_DAEMON_PROCESS
+        fi
+        echo "$NAME."
+        ;;
+  stop)
+        echo -n "Stopping $DESC: "
+        kill -QUIT `cat $PID`
+        echo "$NAME."
+        ;;
+  restart)
+        echo -n "Restarting $DESC: "
+        kill -USR2 `cat $PID`
+        echo "$NAME."
+        ;;
+  reload)
+        echo -n "Reloading $DESC configuration: "
+        kill -HUP `cat $PID`
+        echo "$NAME."
+        ;;
+  *)
+        echo "Usage: $NAME {start|stop|restart|reload}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
+
+Make the file executable.
+
+	chmod +x /etc/init.d/unicorn.appname
+
+Then, restart the Nginx service.
+
+	/etc/init.d/nginx restart
+
+Enjoy !!
