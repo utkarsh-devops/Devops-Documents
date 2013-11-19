@@ -1,0 +1,27 @@
+<VirtualHost *:80>
+  ServerName iblapp.weboapps.com
+#  DocumentRoot /var/www/iblapp.weboapps.com/current
+   DocumentRoot /var/www/ComingSoonHTML
+#  <Directory /var/www/iblapp.weboapps.com/current>
+  <Directory /var/www/ComingSoonHTML>
+		Options -Indexes FollowSymLinks 
+		AllowOverride All
+  </Directory>
+</VirtualHost>
+
+
+<VirtualHost *:443>
+  ServerName iblapp.weboapps.com
+#  DocumentRoot /var/www/iblapp.weboapps.com/current
+  
+  DocumentRoot /var/www/ComingSoonHTML
+  sslengine on 
+  sslcertificatefile /etc/ssl/certs/weboapps.com.crt
+  sslcertificatekeyfile /etc/ssl/private/weboapps.com.key
+  sslcertificatechainfile /etc/ssl/CA/gd_bundle.crt
+#  <Directory /var/www/iblapp.weboapps.com/current>
+  <Directory /var/www/ComingSoonHTML>
+		Options -Indexes FollowSymLinks 
+		AllowOverride All
+  </Directory>
+</VirtualHost>
